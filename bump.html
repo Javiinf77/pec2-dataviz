@@ -200,14 +200,7 @@ d3.csv('data/f1_constructors.csv', d => ({
     .on('mouseleave', () => { if (pinned.size === 0) paths.classed('dim', false); })
     .on('click', (e, d) => togglePin(d.team));
 
-  // Quick draw-in (short enough to be visible before user interacts)
-  paths.each(function() {
-    const len = this.getTotalLength();
-    d3.select(this).attr('stroke-dasharray', len).attr('stroke-dashoffset', len)
-      .transition().duration(600).ease(d3.easeCubicOut)
-      .attr('stroke-dashoffset', 0)
-      .on('end', function() { d3.select(this).attr('stroke-dasharray', null); });
-  });
+  // Lines appear instantly; interaction (hover/pin) handles the dynamism
 
   // Dots
   const tt = document.getElementById('tt');
