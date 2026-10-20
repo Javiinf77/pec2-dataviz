@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Dot Density Map — Terremotos M4.5+ último mes</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  body { font-family: system-ui, sans-serif; margin: 0; color: #eee; background: #111; }
+  header { padding: 1rem 1.2rem; }
+  header h1 { margin: 0 0 .3rem 0; font-size: 1.3rem; }
+  header p { margin: 0; color: #aaa; font-size: .9rem; }
+  #map { height: 72vh; width: 100%; background: #000; }
+  footer { padding: .7rem 1.2rem; color: #888; font-size: .8rem; }
+  a { color: #6cf; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Terremotos globales M4.5+ · últimos 30 días</h1>
+  <p>Fuente: USGS Earthquake Hazards Program (dominio público) — un punto = un sismo registrado</p>
+</header>
+<div id="map"></div>
+<footer>
+  Técnica: <b>Dot density map</b> (one-to-one). Insight: el <b>Cinturón de Fuego del Pacífico</b> emerge solo con la densidad de puntos; no hace falta ninguna capa geológica adicional. ·
+  <a href="index.html">← volver</a>
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const map = L.map('map', { worldCopyJump: true }).setView([10, 10], 2);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap &copy; CARTO', subdomains: 'abcd', maxZoom: 10
+}).addTo(map);
+
+fetch('data/quakes.csv')
+  .then(r => r.text())
+  .then(txt => {
+    const [head, ...lines] = txt.trim().split('\n');
+    const cols = head.split(',');
+    const iLat = cols.indexOf('latitude'), iLon = cols.indexOf('longitude'),
+          iMag = cols.indexOf('mag'), iPlc = cols.indexOf('place'),
+          iTime = cols.indexOf('time');
+    let count = 0;
+    for (const line of lines) {
+      const parts = line.match(/("[^"]*"|[^,]*)(,|$)/g).map(s => s.replace(/,$/, '').replace(/^"|"$/g, ''));
+      const lat = +parts[iLat], lon = +parts[iLon], mag = +parts[iMag];
+      if (!isFinite(lat) || !isFinite(lon)) continue;
+      L.circleMarker([lat, lon], {
+        radius: 2.5, color: '#ff6a00', weight: 0, fillOpacity: 0.75
+      }).bindPopup(`<b>M${mag.toFixed(1)}</b><br>${parts[iPlc]}<br><small>${parts[iTime]}</small>`).addTo(map);
+      count++;
+    }
+    document.querySelector('header p').textContent += ` · ${count} sismos`;
+  });
+</script>
+</body>
+</html>

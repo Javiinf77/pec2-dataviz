@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Bump Chart — Constructores F1 2011-2024</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 1000px; margin: 1.5rem auto; padding: 0 1rem; color: #222; }
+  h1 { margin-bottom: .2rem; }
+  .sub { color: #666; margin-top: 0; font-size: .95rem; }
+  svg { background: #fafafa; display: block; margin-top: .8rem; }
+  .line { fill: none; stroke-width: 3.5; cursor: pointer; opacity: .85; transition: opacity .15s; }
+  .line.dim { opacity: .15; }
+  .dot { stroke: #fff; stroke-width: 1.5; }
+  .label { font-size: 12px; font-weight: 600; dominant-baseline: central; }
+  .axis { font-size: 12px; fill: #555; }
+  .ygrid line { stroke: #e5e5e5; }
+  footer { margin-top: 1rem; color: #666; font-size: .85rem; }
+  a { color: #06c; }
+</style>
+</head>
+<body>
+<h1>Campeonato de constructores de Fórmula 1 · 2011-2024</h1>
+<p class="sub">Posición final de los principales equipos cada temporada. Fuente: API Jolpica/Ergast. Alias históricos agrupados (p.ej. Toro Rosso → AlphaTauri → RB).</p>
+
+<svg id="chart" width="1000" height="540"></svg>
+
+<footer>
+  Técnica: <b>Bump chart</b>. Insight: <b>Mercedes 2014-2021</b> es la hegemonía más larga del periodo; <b>Red Bull</b> rompe el ciclo en 2022-2024; <b>McLaren</b> cierra 2024 como campeón tras un década fuera del podio. La línea de <b>Ferrari</b> es la más estable en el top 3 pero sin títulos. ·
+  <a href="index.html">← volver</a>
+</footer>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+const ALIAS = {
+  'Toro Rosso': 'AlphaTauri/RB', 'AlphaTauri': 'AlphaTauri/RB', 'RB F1 Team': 'AlphaTauri/RB',
+  'Force India': 'Aston Martin', 'Racing Point': 'Aston Martin',
+  'Lotus F1': 'Alpine', 'Renault': 'Alpine', 'Alpine F1 Team': 'Alpine',
+  'Alfa Romeo': 'Sauber',
+};
+const COLORS = {
+  'Red Bull': '#1e3a8a', 'Mercedes': '#00a19b', 'Ferrari': '#dc0000', 'McLaren': '#ff8700',
+  'Williams': '#005aff', 'Haas F1 Team': '#b6babd', 'Aston Martin': '#006f62',
+  'Alpine': '#ff87bc', 'AlphaTauri/RB': '#6692ff', 'Sauber': '#52e252',
+};
+
+d3.csv('data/f1_constructors.csv', d => ({
+  year: +d.year, rank: +d.rank, team: ALIAS[d.team] || d.team
+})).then(raw => {
+  // keep only teams in COLORS map (10 teams)
+  const keep = new Set(Object.keys(COLORS));
+  const data = raw.filter(d => keep.has(d.team));
+
+  // group by team
+  const teams = Array.from(d3.group(data, d => d.team), ([team, vals]) => ({
+    team, vals: vals.sort((a,b) => a.year - b.year)
+  }));
+
+  const years = Array.from(new Set(data.map(d => d.year))).sort();
+  const W = 1000, H = 540, mL = 55, mR = 160, mT = 30, mB = 40;
+  const x = d3.scaleLinear().domain(d3.extent(years)).range([mL, W - mR]);
+  const y = d3.scaleLinear().domain([1, 10]).range([mT, H - mB]);
+
+  const svg = d3.select('#chart');
+
+  // y-axis gridlines
+  const yAxis = svg.append('g').attr('class', 'ygrid axis').attr('transform', `translate(${mL},0)`)
+    .call(d3.axisLeft(y).ticks(10).tickFormat(d => d).tickSize(-(W - mL - mR)));
+  yAxis.selectAll('text').attr('x', -10);
+  yAxis.select('.domain').remove();
+
+  // x-axis
+  svg.append('g').attr('class', 'axis').attr('transform', `translate(0,${H - mB})`)
+    .call(d3.axisBottom(x).ticks(years.length).tickFormat(d3.format('d')));
+
+  const line = d3.line()
+    .x(d => x(d.year))
+    .y(d => y(d.rank))
+    .curve(d3.curveMonotoneX);
+
+  // lines
+  const g = svg.append('g');
+  const paths = g.selectAll('path.line').data(teams).join('path')
+    .attr('class', 'line').attr('d', d => line(d.vals))
+    .attr('stroke', d => COLORS[d.team]);
+
+  // dots
+  g.selectAll('g.dots').data(teams).join('g').attr('class', 'dots')
+    .each(function(t) {
+      d3.select(this).selectAll('circle').data(t.vals).join('circle')
+        .attr('class', 'dot').attr('cx', d => x(d.year)).attr('cy', d => y(d.rank))
+        .attr('r', 4).attr('fill', COLORS[t.team])
+        .append('title').text(d => `${t.team} · ${d.year} · P${d.rank}`);
+    });
+
+  // labels at the right (last known year of each team)
+  g.selectAll('text.label').data(teams).join('text').attr('class', 'label')
+    .attr('x', d => x(d.vals[d.vals.length - 1].year) + 10)
+    .attr('y', d => y(d.vals[d.vals.length - 1].rank))
+    .attr('fill', d => COLORS[d.team])
+    .text(d => d.team);
+
+  // hover highlight
+  paths.on('mouseenter', (e, d) => {
+    paths.classed('dim', t => t.team !== d.team);
+  }).on('mouseleave', () => paths.classed('dim', false));
+});
+</script>
+</body>
+</html>
