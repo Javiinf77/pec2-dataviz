@@ -231,9 +231,7 @@ d3.csv('data/f1_constructors.csv', d => ({
     .attr('x', d => x(d.vals[d.vals.length - 1].year) + 10)
     .attr('y', d => y(d.vals[d.vals.length - 1].rank))
     .attr('fill', d => COLORS[d.team])
-    .text(d => d.team)
-    .style('opacity', 0)
-    .transition().delay(1500).duration(400).style('opacity', 1);
+    .text(d => d.team);
 
   // Build legend (count championships)
   const champCount = {};

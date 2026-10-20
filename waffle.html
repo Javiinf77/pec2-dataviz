@@ -137,16 +137,18 @@ const cellGroups = svg.selectAll('g').data(d3.range(100)).join('g')
 cellGroups.append('rect').attr('class', 'cell').attr('width', SIZE).attr('height', SIZE).attr('rx', 3).attr('fill', '#1a1b22');
 cellGroups.append('title');
 
-// Build legend DOM
+// Build legend DOM — keep direct node refs to avoid selector issues with spaces/dots in keys
 const legend = d3.select('#legend');
 const groupOrder = [['renov', 'Renovables'], ['other', 'Nuclear'], ['fossil', 'Fósiles']];
+const rowRefs = {};  // k -> { row, pct }
 for (const [g, label] of groupOrder) {
   legend.append('div').attr('class', 'group-head').text(label);
   SOURCES.filter(s => s.group === g).forEach(s => {
-    const row = legend.append('div').attr('class', 'row').attr('data-k', s.k);
+    const row = legend.append('div').attr('class', 'row');
     row.append('div').attr('class', 'sw').style('background', s.c);
     row.append('div').text(s.k);
-    row.append('div').attr('class', 'pct').attr('id', 'pct-' + s.k).text('—');
+    const pct = row.append('div').attr('class', 'pct').text('—');
+    rowRefs[s.k] = { row, pct };
   });
 }
 
@@ -198,8 +200,9 @@ function update(year) {
   let renov = 0, fossil = 0;
   SOURCES.forEach(s => {
     const p = pcts.find(x => x.k === s.k).pct;
-    d3.select('#pct-' + s.k).text(p.toFixed(1) + ' %');
-    d3.select(`.row[data-k="${s.k}"]`).classed('highlight', p >= 10);
+    const ref = rowRefs[s.k];
+    ref.pct.text(p.toFixed(1) + ' %');
+    ref.row.classed('highlight', p >= 10);
     if (s.group === 'renov') renov += p;
     if (s.group === 'fossil') fossil += p;
   });
