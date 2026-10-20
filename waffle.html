@@ -191,9 +191,7 @@ function update(year) {
   });
   while (cells.length < 100) cells.push({ k: '—', c: '#1a1b22' });
 
-  cellGroups.select('rect')
-    .transition().duration(650).delay((_, i) => i * 2)
-    .attr('fill', (_, i) => cells[i].c);
+  cellGroups.select('rect').attr('fill', (_, i) => cells[i].c);
   cellGroups.select('title').text((_, i) => `${cells[i].k} — ${year}`);
 
   // legend pcts + KPIs
