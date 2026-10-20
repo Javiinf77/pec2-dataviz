@@ -4,54 +4,221 @@
 <meta charset="utf-8">
 <title>Dot Density Map — Terremotos M4.5+ último mes</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
-  body { font-family: system-ui, sans-serif; margin: 0; color: #eee; background: #111; }
-  header { padding: 1rem 1.2rem; }
-  header h1 { margin: 0 0 .3rem 0; font-size: 1.3rem; }
-  header p { margin: 0; color: #aaa; font-size: .9rem; }
-  #map { height: 72vh; width: 100%; background: #000; }
-  footer { padding: .7rem 1.2rem; color: #888; font-size: .8rem; }
-  a { color: #6cf; }
+  :root {
+    --bg: #07080c; --panel: rgba(16,18,24,.78); --border: rgba(255,255,255,.08);
+    --fg: #e8ecf1; --muted: #8691a0; --accent: #ff6a00; --accent2: #ffd166;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--fg); overflow: hidden; }
+  #map { position: absolute; inset: 0; background: #000; }
+  .leaflet-container { background: #000; font-family: inherit; }
+
+  .panel {
+    position: absolute; z-index: 1000;
+    background: var(--panel); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--border); border-radius: 14px;
+    padding: 1rem 1.1rem; color: var(--fg);
+    box-shadow: 0 10px 40px rgba(0,0,0,.5);
+  }
+  .top { top: 18px; left: 18px; max-width: 360px; }
+  .top h1 { margin: 0 0 .25rem; font-size: 1.05rem; font-weight: 700; letter-spacing: -.01em; }
+  .top .sub { margin: 0; font-size: .8rem; color: var(--muted); line-height: 1.4; }
+  .stat { display: flex; gap: 1.1rem; margin-top: .75rem; }
+  .stat .k { font-family: 'JetBrains Mono', monospace; font-size: 1.4rem; font-weight: 500; color: var(--accent2); line-height: 1; }
+  .stat .l { font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-top: 3px; }
+
+  .controls { bottom: 18px; left: 18px; min-width: 320px; }
+  .controls label { display: block; font-size: .72rem; text-transform: uppercase; color: var(--muted); letter-spacing: .08em; margin-bottom: .4rem; }
+  .controls .row + .row { margin-top: .85rem; }
+  .controls .vals { display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: .78rem; color: var(--fg); margin-bottom: .25rem; }
+  input[type=range] {
+    -webkit-appearance: none; appearance: none; width: 100%; height: 4px;
+    background: rgba(255,255,255,.1); border-radius: 2px; outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--accent); border: 2px solid #fff; cursor: pointer;
+    box-shadow: 0 0 10px rgba(255,106,0,.6);
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--accent); border: 2px solid #fff; cursor: pointer;
+  }
+  button {
+    font-family: inherit; font-size: .8rem; font-weight: 500;
+    background: rgba(255,255,255,.08); color: var(--fg);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: .4rem .8rem; cursor: pointer; transition: all .15s;
+  }
+  button:hover { background: rgba(255,255,255,.15); }
+  button.active { background: var(--accent); color: #000; border-color: var(--accent); }
+
+  .legend { bottom: 18px; right: 18px; }
+  .legend .bar {
+    width: 220px; height: 10px; border-radius: 5px;
+    background: linear-gradient(to right, #ff2a2a, #ff6a00, #ffb703, #8338ec, #3a0ca3);
+    margin: .35rem 0;
+  }
+  .legend .lbls { display: flex; justify-content: space-between; font-size: .7rem; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+  .legend .dots-ex { display: flex; align-items: flex-end; gap: 1rem; margin-top: .85rem; }
+  .legend .dots-ex .d { background: #ff6a00; border-radius: 50%; display: block; }
+  .legend .dots-ex span { font-size: .7rem; color: var(--muted); display: block; text-align: center; margin-top: .25rem; font-family: 'JetBrains Mono', monospace; }
+
+  .footer-tag { position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 999; font-size: .72rem; color: var(--muted); }
+  .footer-tag a { color: var(--accent2); text-decoration: none; }
+
+  .leaflet-control-attribution { background: rgba(0,0,0,.55) !important; color: #999 !important; font-size: 10px !important; }
+  .leaflet-control-attribution a { color: #aaa !important; }
+  .leaflet-popup-content-wrapper { background: var(--panel); color: var(--fg); border-radius: 10px; backdrop-filter: blur(14px); }
+  .leaflet-popup-tip { background: rgba(16,18,24,.78); }
+  .leaflet-popup-content { font-family: inherit; font-size: .85rem; margin: .7rem .9rem; }
+  .leaflet-popup-content b { color: var(--accent2); }
 </style>
 </head>
 <body>
-<header>
-  <h1>Terremotos globales M4.5+ · últimos 30 días</h1>
-  <p>Fuente: USGS Earthquake Hazards Program (dominio público) — un punto = un sismo registrado</p>
-</header>
 <div id="map"></div>
-<footer>
-  Técnica: <b>Dot density map</b> (one-to-one). Insight: el <b>Cinturón de Fuego del Pacífico</b> emerge solo con la densidad de puntos; no hace falta ninguna capa geológica adicional. ·
-  <a href="index.html">← volver</a>
-</footer>
+
+<div class="panel top">
+  <h1>Sismos globales M4.5+ · últimos 30 días</h1>
+  <p class="sub">USGS Earthquake Hazards Program · un punto = un sismo · tamaño = magnitud · color = profundidad</p>
+  <div class="stat">
+    <div><div class="k" id="s-count">0</div><div class="l">Visibles</div></div>
+    <div><div class="k" id="s-max">0.0</div><div class="l">Mag. máx.</div></div>
+    <div><div class="k" id="s-deep">0</div><div class="l">km máx.</div></div>
+  </div>
+</div>
+
+<div class="panel controls">
+  <div class="row">
+    <label>Magnitud mínima</label>
+    <div class="vals"><span>M4.5</span><span id="mag-cur">M4.5</span><span>M8.0</span></div>
+    <input type="range" id="magMin" min="4.5" max="8.0" step="0.1" value="4.5">
+  </div>
+  <div class="row">
+    <label>Línea temporal (día del mes mostrado)</label>
+    <div class="vals"><span>día 1</span><span id="t-cur">todos</span><span>día 30</span></div>
+    <input type="range" id="dayMax" min="1" max="30" step="1" value="30">
+    <div style="margin-top: .55rem; display: flex; gap: .4rem;">
+      <button id="playBtn">▶ Animar 30 días</button>
+      <button id="resetBtn">Reset</button>
+    </div>
+  </div>
+</div>
+
+<div class="panel legend">
+  <label style="font-size: .72rem; text-transform: uppercase; color: var(--muted); letter-spacing: .08em;">Profundidad</label>
+  <div class="bar"></div>
+  <div class="lbls"><span>0 km</span><span>300 km</span><span>700+ km</span></div>
+  <div class="dots-ex">
+    <div><div class="d" style="width:5px; height:5px;"></div><span>M5</span></div>
+    <div><div class="d" style="width:9px; height:9px;"></div><span>M6</span></div>
+    <div><div class="d" style="width:14px; height:14px;"></div><span>M7</span></div>
+    <div><div class="d" style="width:20px; height:20px;"></div><span>M8</span></div>
+  </div>
+</div>
+
+<div class="footer-tag">
+  Técnica: <b style="color:var(--fg)">Dot density map</b> (one-to-one) ·
+  <a href="index.html">← índice</a>
+</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-const map = L.map('map', { worldCopyJump: true }).setView([10, 10], 2);
+const map = L.map('map', { worldCopyJump: true, zoomControl: false, attributionControl: true }).setView([15, 20], 2);
+L.control.zoom({ position: 'topright' }).addTo(map);
 L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
-  attribution: 'Tiles &copy; Esri', maxZoom: 10
+  attribution: 'Tiles &copy; Esri · Data &copy; USGS', maxZoom: 10
 }).addTo(map);
 
-fetch('data/quakes.csv')
-  .then(r => r.text())
-  .then(txt => {
-    const [head, ...lines] = txt.trim().split('\n');
-    const cols = head.split(',');
-    const iLat = cols.indexOf('latitude'), iLon = cols.indexOf('longitude'),
-          iMag = cols.indexOf('mag'), iPlc = cols.indexOf('place'),
-          iTime = cols.indexOf('time');
-    let count = 0;
-    for (const line of lines) {
-      const parts = line.match(/("[^"]*"|[^,]*)(,|$)/g).map(s => s.replace(/,$/, '').replace(/^"|"$/g, ''));
-      const lat = +parts[iLat], lon = +parts[iLon], mag = +parts[iMag];
-      if (!isFinite(lat) || !isFinite(lon)) continue;
-      L.circleMarker([lat, lon], {
-        radius: 2.5, color: '#ff6a00', weight: 0, fillOpacity: 0.75
-      }).bindPopup(`<b>M${mag.toFixed(1)}</b><br>${parts[iPlc]}<br><small>${parts[iTime]}</small>`).addTo(map);
-      count++;
+// Color scale by depth (shallow red → deep purple)
+function depthColor(d) {
+  const stops = [[0,'#ff2a2a'],[70,'#ff6a00'],[150,'#ffb703'],[300,'#8338ec'],[700,'#3a0ca3']];
+  for (let i = 1; i < stops.length; i++) {
+    if (d <= stops[i][0]) {
+      const [d0,c0] = stops[i-1], [d1,c1] = stops[i];
+      const t = (d - d0) / (d1 - d0);
+      return lerpHex(c0, c1, t);
     }
-    document.querySelector('header p').textContent += ` · ${count} sismos`;
-  });
+  }
+  return stops[stops.length-1][1];
+}
+function lerpHex(a, b, t) {
+  const pa = [parseInt(a.slice(1,3),16), parseInt(a.slice(3,5),16), parseInt(a.slice(5,7),16)];
+  const pb = [parseInt(b.slice(1,3),16), parseInt(b.slice(3,5),16), parseInt(b.slice(5,7),16)];
+  const r = pa.map((v,i) => Math.round(v + (pb[i]-v)*t));
+  return `rgb(${r[0]},${r[1]},${r[2]})`;
+}
+function magRadius(m) { return Math.max(2.5, (m - 3.5) * 2.2); }
+
+let quakes = [];
+const layer = L.layerGroup().addTo(map);
+let maxEpochDay = 0, minEpochDay = Infinity;
+
+fetch('data/quakes.csv').then(r => r.text()).then(txt => {
+  const [head, ...lines] = txt.trim().split('\n');
+  const cols = head.split(',');
+  const iLat = cols.indexOf('latitude'), iLon = cols.indexOf('longitude'),
+        iMag = cols.indexOf('mag'), iDep = cols.indexOf('depth'),
+        iPlc = cols.indexOf('place'), iTime = cols.indexOf('time');
+  for (const line of lines) {
+    const parts = line.match(/("[^"]*"|[^,]*)(,|$)/g).map(s => s.replace(/,$/, '').replace(/^"|"$/g, ''));
+    const lat = +parts[iLat], lon = +parts[iLon], mag = +parts[iMag], dep = +parts[iDep];
+    if (!isFinite(lat) || !isFinite(lon)) continue;
+    const t = Date.parse(parts[iTime]);
+    const epochDay = Math.floor(t / 86400000);
+    quakes.push({ lat, lon, mag, dep, place: parts[iPlc], time: parts[iTime], epochDay });
+    if (epochDay > maxEpochDay) maxEpochDay = epochDay;
+    if (epochDay < minEpochDay) minEpochDay = epochDay;
+  }
+  render();
+});
+
+const magEl = document.getElementById('magMin'), dayEl = document.getElementById('dayMax');
+const magCur = document.getElementById('mag-cur'), tCur = document.getElementById('t-cur');
+const sCount = document.getElementById('s-count'), sMax = document.getElementById('s-max'), sDeep = document.getElementById('s-deep');
+
+function render() {
+  layer.clearLayers();
+  const minMag = +magEl.value;
+  const dayLim = +dayEl.value;
+  const cutoff = minEpochDay + dayLim - 1;
+  let n = 0, mx = 0, dp = 0;
+  for (const q of quakes) {
+    if (q.mag < minMag || q.epochDay > cutoff) continue;
+    L.circleMarker([q.lat, q.lon], {
+      radius: magRadius(q.mag), color: '#fff', weight: 0.3,
+      fillColor: depthColor(q.dep), fillOpacity: 0.78
+    }).bindPopup(`<b>M${q.mag.toFixed(1)}</b> · ${q.dep.toFixed(0)} km<br>${q.place}<br><small style="color:#8691a0">${q.time}</small>`).addTo(layer);
+    n++; if (q.mag > mx) mx = q.mag; if (q.dep > dp) dp = q.dep;
+  }
+  sCount.textContent = n; sMax.textContent = mx.toFixed(1); sDeep.textContent = dp.toFixed(0);
+  magCur.textContent = 'M' + minMag.toFixed(1);
+  tCur.textContent = dayLim === 30 ? 'todos' : `día 1–${dayLim}`;
+}
+
+magEl.addEventListener('input', render);
+dayEl.addEventListener('input', render);
+
+let playing = null;
+document.getElementById('playBtn').addEventListener('click', e => {
+  if (playing) { clearInterval(playing); playing = null; e.target.textContent = '▶ Animar 30 días'; return; }
+  e.target.textContent = '⏸ Pausar';
+  dayEl.value = 1; render();
+  playing = setInterval(() => {
+    const next = +dayEl.value + 1;
+    if (next > 30) { clearInterval(playing); playing = null; e.target.textContent = '▶ Animar 30 días'; return; }
+    dayEl.value = next; render();
+  }, 180);
+});
+document.getElementById('resetBtn').addEventListener('click', () => {
+  magEl.value = 4.5; dayEl.value = 30; render();
+});
 </script>
 </body>
 </html>

@@ -3,31 +3,94 @@
 <head>
 <meta charset="utf-8">
 <title>Bump Chart — Constructores F1 2011-2024</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
-  body { font-family: system-ui, sans-serif; max-width: 1000px; margin: 1.5rem auto; padding: 0 1rem; color: #222; }
-  h1 { margin-bottom: .2rem; }
-  .sub { color: #666; margin-top: 0; font-size: .95rem; }
-  svg { background: #fafafa; display: block; margin-top: .8rem; }
-  .line { fill: none; stroke-width: 3.5; cursor: pointer; opacity: .85; transition: opacity .15s; }
-  .line.dim { opacity: .15; }
-  .dot { stroke: #fff; stroke-width: 1.5; }
-  .label { font-size: 12px; font-weight: 600; dominant-baseline: central; }
-  .axis { font-size: 12px; fill: #555; }
-  .ygrid line { stroke: #e5e5e5; }
-  footer { margin-top: 1rem; color: #666; font-size: .85rem; }
-  a { color: #06c; }
+  :root {
+    --bg: #0a0b10; --panel: #121319; --border: rgba(255,255,255,.08);
+    --fg: #e8ecf1; --muted: #8691a0; --gold: #ffd166;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--fg); margin: 0; min-height: 100vh; padding: 1.5rem; }
+  .wrap { max-width: 1280px; margin: 0 auto; }
+  header h1 { margin: 0 0 .25rem; font-size: 1.5rem; letter-spacing: -.015em; }
+  header p { margin: 0; color: var(--muted); font-size: .9rem; max-width: 820px; }
+
+  .layout { display: grid; grid-template-columns: 1fr 240px; gap: 1.5rem; margin-top: 1.5rem; align-items: start; }
+  @media (max-width: 980px) { .layout { grid-template-columns: 1fr; } }
+
+  .chart-card { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; overflow: hidden; }
+  svg { display: block; width: 100%; height: auto; }
+
+  .line { fill: none; stroke-width: 3; cursor: pointer; transition: opacity .25s, stroke-width .2s; }
+  .line.dim { opacity: 0.1; }
+  .line.pinned { stroke-width: 5; filter: drop-shadow(0 0 8px currentColor); }
+  .line.winner { filter: drop-shadow(0 0 6px var(--gold)); }
+  .dot { stroke: var(--panel); stroke-width: 2; cursor: pointer; transition: r .2s; }
+  .dot.winner { stroke: var(--gold); stroke-width: 2.5; }
+  .dot.pinned { r: 6; }
+  .label { font-size: 12px; font-weight: 600; dominant-baseline: central; pointer-events: none; }
+  .axis { font-size: 11px; fill: var(--muted); font-family: 'JetBrains Mono', monospace; }
+  .axis path, .axis line { stroke: rgba(255,255,255,.1); }
+  .ygrid line { stroke: rgba(255,255,255,.05); shape-rendering: crispEdges; }
+  .annotation { font-size: 11px; fill: var(--gold); font-weight: 500; }
+  .annotation-bg { fill: rgba(0,0,0,.6); }
+
+  .legend-card { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 1rem; }
+  .legend-card h3 { margin: 0 0 .5rem; font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-weight: 500; }
+  .leg-item { display: flex; align-items: center; gap: .6rem; padding: .4rem .5rem; border-radius: 6px; cursor: pointer; font-size: .85rem; transition: background .15s; }
+  .leg-item:hover { background: rgba(255,255,255,.05); }
+  .leg-item.off { opacity: .35; }
+  .leg-item.pinned { background: rgba(255,209,102,.12); }
+  .leg-item .sw { width: 10px; height: 10px; border-radius: 50%; }
+  .leg-item .champ { margin-left: auto; color: var(--gold); font-family: 'JetBrains Mono', monospace; font-size: .72rem; }
+  .reset-btn {
+    margin-top: .5rem; width: 100%;
+    font-family: inherit; font-size: .78rem;
+    background: rgba(255,255,255,.06); color: var(--fg);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: .5rem; cursor: pointer; transition: all .15s;
+  }
+  .reset-btn:hover { background: rgba(255,255,255,.12); }
+
+  footer { margin-top: 1.5rem; color: var(--muted); font-size: .82rem; }
+  footer a { color: var(--gold); } footer b { color: var(--fg); }
+
+  .tooltip {
+    position: fixed; pointer-events: none; z-index: 1000;
+    background: #000; border: 1px solid rgba(255,255,255,.15); border-radius: 8px;
+    padding: .5rem .7rem; font-size: .8rem; color: var(--fg); opacity: 0;
+    transition: opacity .15s; backdrop-filter: blur(10px);
+    box-shadow: 0 6px 20px rgba(0,0,0,.5);
+  }
+  .tooltip b { color: var(--gold); }
 </style>
 </head>
 <body>
-<h1>Campeonato de constructores de Fórmula 1 · 2011-2024</h1>
-<p class="sub">Posición final de los principales equipos cada temporada. Fuente: API Jolpica/Ergast. Alias históricos agrupados (p.ej. Toro Rosso → AlphaTauri → RB).</p>
+<div class="wrap">
+  <header>
+    <h1>Campeonato de constructores · Fórmula 1 · 2011-2024</h1>
+    <p>Posición final cada temporada. <b style="color:var(--fg)">Click</b> en una línea o leyenda para fijar; <b style="color:var(--fg)">hover</b> para destacar. Las coronas marcan los campeones. Alias históricos agrupados (Toro Rosso/AlphaTauri/RB · Force India/Racing Point/Aston Martin · Lotus/Renault/Alpine · Alfa Romeo/Sauber). Fuente: API Jolpica/Ergast.</p>
+  </header>
 
-<svg id="chart" width="1000" height="540"></svg>
+  <div class="layout">
+    <div class="chart-card">
+      <svg id="chart" viewBox="0 0 1000 560" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+    <div class="legend-card">
+      <h3>Equipos</h3>
+      <div id="legend"></div>
+      <button class="reset-btn" id="resetBtn">Mostrar todos</button>
+    </div>
+  </div>
 
-<footer>
-  Técnica: <b>Bump chart</b>. Insight: <b>Mercedes 2014-2021</b> es la hegemonía más larga del periodo; <b>Red Bull</b> rompe el ciclo en 2022-2024; <b>McLaren</b> cierra 2024 como campeón tras un década fuera del podio. La línea de <b>Ferrari</b> es la más estable en el top 3 pero sin títulos. ·
-  <a href="index.html">← volver</a>
-</footer>
+  <footer>
+    Técnica: <b>Bump chart</b> (rango por temporada). Insight: <b>Mercedes 2014-2021</b> es la hegemonía más larga del periodo (8 títulos seguidos); <b>Red Bull</b> rompe el ciclo 2022-2023; <b>McLaren</b> cierra 2024 como campeón tras más de una década fuera del podio constructores.
+    · <a href="index.html">← índice</a>
+  </footer>
+</div>
+<div class="tooltip" id="tt"></div>
 
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <script>
@@ -38,71 +101,163 @@ const ALIAS = {
   'Alfa Romeo': 'Sauber',
 };
 const COLORS = {
-  'Red Bull': '#1e3a8a', 'Mercedes': '#00a19b', 'Ferrari': '#dc0000', 'McLaren': '#ff8700',
-  'Williams': '#005aff', 'Haas F1 Team': '#b6babd', 'Aston Martin': '#006f62',
+  'Red Bull': '#1e40ff', 'Mercedes': '#00d2be', 'Ferrari': '#ed1c24', 'McLaren': '#ff8700',
+  'Williams': '#0082fa', 'Haas F1 Team': '#b6babd', 'Aston Martin': '#006f62',
   'Alpine': '#ff87bc', 'AlphaTauri/RB': '#6692ff', 'Sauber': '#52e252',
 };
 
 d3.csv('data/f1_constructors.csv', d => ({
   year: +d.year, rank: +d.rank, team: ALIAS[d.team] || d.team
 })).then(raw => {
-  // keep only teams in COLORS map (10 teams)
   const keep = new Set(Object.keys(COLORS));
   const data = raw.filter(d => keep.has(d.team));
-
-  // group by team
   const teams = Array.from(d3.group(data, d => d.team), ([team, vals]) => ({
     team, vals: vals.sort((a,b) => a.year - b.year)
-  }));
+  })).sort((a, b) => a.team.localeCompare(b.team));
 
   const years = Array.from(new Set(data.map(d => d.year))).sort();
-  const W = 1000, H = 540, mL = 55, mR = 160, mT = 30, mB = 40;
+  const champs = {}; // year -> team
+  data.filter(d => d.rank === 1).forEach(d => champs[d.year] = d.team);
+
+  const W = 1000, H = 560, mL = 55, mR = 150, mT = 30, mB = 50;
   const x = d3.scaleLinear().domain(d3.extent(years)).range([mL, W - mR]);
   const y = d3.scaleLinear().domain([1, 10]).range([mT, H - mB]);
 
   const svg = d3.select('#chart');
 
   // y-axis gridlines
-  const yAxis = svg.append('g').attr('class', 'ygrid axis').attr('transform', `translate(${mL},0)`)
+  const yg = svg.append('g').attr('class', 'ygrid axis').attr('transform', `translate(${mL},0)`)
     .call(d3.axisLeft(y).ticks(10).tickFormat(d => d).tickSize(-(W - mL - mR)));
-  yAxis.selectAll('text').attr('x', -10);
-  yAxis.select('.domain').remove();
+  yg.selectAll('text').attr('x', -12).attr('fill', 'var(--muted)');
+  yg.select('.domain').remove();
 
   // x-axis
   svg.append('g').attr('class', 'axis').attr('transform', `translate(0,${H - mB})`)
     .call(d3.axisBottom(x).ticks(years.length).tickFormat(d3.format('d')));
+
+  // Champion crowns above year axis
+  const champG = svg.append('g');
+  years.forEach(yr => {
+    if (champs[yr]) {
+      champG.append('text')
+        .attr('x', x(yr)).attr('y', mT - 10).attr('text-anchor', 'middle')
+        .attr('font-size', 16).text('👑')
+        .append('title').text(`Campeón ${yr}: ${champs[yr]}`);
+    }
+  });
 
   const line = d3.line()
     .x(d => x(d.year))
     .y(d => y(d.rank))
     .curve(d3.curveMonotoneX);
 
-  // lines
   const g = svg.append('g');
-  const paths = g.selectAll('path.line').data(teams).join('path')
-    .attr('class', 'line').attr('d', d => line(d.vals))
-    .attr('stroke', d => COLORS[d.team]);
 
-  // dots
-  g.selectAll('g.dots').data(teams).join('g').attr('class', 'dots')
-    .each(function(t) {
-      d3.select(this).selectAll('circle').data(t.vals).join('circle')
-        .attr('class', 'dot').attr('cx', d => x(d.year)).attr('cy', d => y(d.rank))
-        .attr('r', 4).attr('fill', COLORS[t.team])
-        .append('title').text(d => `${t.team} · ${d.year} · P${d.rank}`);
+  // State
+  const pinned = new Set();
+  const hidden = new Set();
+
+  function updateVisibility() {
+    const anyPinned = pinned.size > 0;
+    paths.each(function(d) {
+      const sel = d3.select(this);
+      const isHidden = hidden.has(d.team);
+      const isPinned = pinned.has(d.team);
+      sel.style('display', isHidden ? 'none' : null);
+      sel.classed('pinned', isPinned);
+      sel.classed('dim', anyPinned && !isPinned);
     });
+    dotG.each(function(d) {
+      const isHidden = hidden.has(d.team);
+      const isPinned = pinned.has(d.team);
+      d3.select(this).style('display', isHidden ? 'none' : null)
+        .classed('dim', pinned.size > 0 && !isPinned);
+      d3.select(this).selectAll('.dot').classed('pinned', isPinned);
+    });
+    labels.each(function(d) {
+      const isHidden = hidden.has(d.team);
+      const isPinned = pinned.has(d.team);
+      d3.select(this).style('display', isHidden ? 'none' : null)
+        .classed('dim', pinned.size > 0 && !isPinned);
+    });
+    d3.selectAll('.leg-item').each(function() {
+      const t = this.dataset.team;
+      d3.select(this).classed('off', hidden.has(t)).classed('pinned', pinned.has(t));
+    });
+  }
 
-  // labels at the right (last known year of each team)
-  g.selectAll('text.label').data(teams).join('text').attr('class', 'label')
+  function togglePin(team) {
+    if (pinned.has(team)) pinned.delete(team); else pinned.add(team);
+    updateVisibility();
+  }
+
+  // Lines with draw-in animation
+  const paths = g.selectAll('path.line').data(teams).join('path')
+    .attr('class', 'line')
+    .attr('d', d => line(d.vals))
+    .attr('stroke', d => COLORS[d.team])
+    .on('mouseenter', (e, d) => { if (pinned.size === 0) paths.classed('dim', t => t.team !== d.team); })
+    .on('mouseleave', () => { if (pinned.size === 0) paths.classed('dim', false); })
+    .on('click', (e, d) => togglePin(d.team));
+
+  // Animate stroke-dashoffset for draw-in
+  paths.each(function() {
+    const len = this.getTotalLength();
+    d3.select(this).attr('stroke-dasharray', len).attr('stroke-dashoffset', len)
+      .transition().duration(1600).ease(d3.easeCubicInOut)
+      .attr('stroke-dashoffset', 0)
+      .on('end', function() { d3.select(this).attr('stroke-dasharray', null); });
+  });
+
+  // Dots
+  const tt = document.getElementById('tt');
+  const dotG = g.selectAll('g.dots').data(teams).join('g').attr('class', 'dots');
+  dotG.each(function(t) {
+    d3.select(this).selectAll('circle').data(t.vals).join('circle')
+      .attr('class', d => d.rank === 1 ? 'dot winner' : 'dot')
+      .attr('cx', d => x(d.year)).attr('cy', d => y(d.rank))
+      .attr('r', 4).attr('fill', COLORS[t.team])
+      .on('mousemove', (e, d) => {
+        tt.innerHTML = `<b>${t.team}</b><br>${d.year} · P${d.rank}`;
+        tt.style.left = (e.clientX + 14) + 'px'; tt.style.top = (e.clientY + 14) + 'px';
+        tt.style.opacity = 1;
+      })
+      .on('mouseleave', () => { tt.style.opacity = 0; })
+      .on('click', () => togglePin(t.team));
+  });
+
+  // Right-side labels at last known year
+  const labels = g.selectAll('text.label').data(teams).join('text').attr('class', 'label')
     .attr('x', d => x(d.vals[d.vals.length - 1].year) + 10)
     .attr('y', d => y(d.vals[d.vals.length - 1].rank))
     .attr('fill', d => COLORS[d.team])
-    .text(d => d.team);
+    .text(d => d.team)
+    .style('opacity', 0)
+    .transition().delay(1500).duration(400).style('opacity', 1);
 
-  // hover highlight
-  paths.on('mouseenter', (e, d) => {
-    paths.classed('dim', t => t.team !== d.team);
-  }).on('mouseleave', () => paths.classed('dim', false));
+  // Build legend (count championships)
+  const champCount = {};
+  Object.values(champs).forEach(t => champCount[t] = (champCount[t] || 0) + 1);
+  const legend = d3.select('#legend');
+  teams.forEach(t => {
+    const item = legend.append('div').attr('class', 'leg-item').attr('data-team', t.team);
+    item.append('div').attr('class', 'sw').style('background', COLORS[t.team]);
+    item.append('div').text(t.team);
+    if (champCount[t.team]) item.append('div').attr('class', 'champ').text('👑×' + champCount[t.team]);
+    item.on('click', function(e) {
+      if (e.shiftKey) {
+        // shift-click: hide/show
+        if (hidden.has(t.team)) hidden.delete(t.team); else hidden.add(t.team);
+      } else {
+        togglePin(t.team);
+      }
+      updateVisibility();
+    });
+  });
+
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    pinned.clear(); hidden.clear(); updateVisibility();
+  });
 });
 </script>
 </body>
