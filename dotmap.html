@@ -101,6 +101,11 @@
     <input type="range" id="magMin" min="4.5" max="8.0" step="0.1" value="4.5">
   </div>
   <div class="row">
+    <label>Magnitud máxima</label>
+    <div class="vals"><span>M4.5</span><span id="magmax-cur">M8.0</span><span>M8.0</span></div>
+    <input type="range" id="magMax" min="4.5" max="8.0" step="0.1" value="8.0">
+  </div>
+  <div class="row">
     <label>Línea temporal (día del mes mostrado)</label>
     <div class="vals"><span>día 1</span><span id="t-cur">todos</span><span>día 30</span></div>
     <input type="range" id="dayMax" min="1" max="30" step="1" value="30">
@@ -179,18 +184,19 @@ fetch('data/quakes.csv').then(r => r.text()).then(txt => {
   render();
 });
 
-const magEl = document.getElementById('magMin'), dayEl = document.getElementById('dayMax');
-const magCur = document.getElementById('mag-cur'), tCur = document.getElementById('t-cur');
+const magEl = document.getElementById('magMin'), magMaxEl = document.getElementById('magMax'), dayEl = document.getElementById('dayMax');
+const magCur = document.getElementById('mag-cur'), magMaxCur = document.getElementById('magmax-cur'), tCur = document.getElementById('t-cur');
 const sCount = document.getElementById('s-count'), sMax = document.getElementById('s-max'), sDeep = document.getElementById('s-deep');
 
 function render() {
   layer.clearLayers();
-  const minMag = +magEl.value;
+  let minMag = +magEl.value, maxMag = +magMaxEl.value;
+  if (minMag > maxMag) { [minMag, maxMag] = [maxMag, minMag]; }  // tolerate crossed sliders
   const dayLim = +dayEl.value;
   const cutoff = minEpochDay + dayLim - 1;
   let n = 0, mx = 0, dp = 0;
   for (const q of quakes) {
-    if (q.mag < minMag || q.epochDay > cutoff) continue;
+    if (q.mag < minMag || q.mag > maxMag || q.epochDay > cutoff) continue;
     L.circleMarker([q.lat, q.lon], {
       radius: magRadius(q.mag), color: '#fff', weight: 0.3,
       fillColor: depthColor(q.dep), fillOpacity: 0.78
@@ -199,10 +205,12 @@ function render() {
   }
   sCount.textContent = n; sMax.textContent = mx.toFixed(1); sDeep.textContent = dp.toFixed(0);
   magCur.textContent = 'M' + minMag.toFixed(1);
+  magMaxCur.textContent = 'M' + maxMag.toFixed(1);
   tCur.textContent = dayLim === 30 ? 'todos' : `día 1–${dayLim}`;
 }
 
 magEl.addEventListener('input', render);
+magMaxEl.addEventListener('input', render);
 dayEl.addEventListener('input', render);
 
 let playing = null;
@@ -217,7 +225,7 @@ document.getElementById('playBtn').addEventListener('click', e => {
   }, 180);
 });
 document.getElementById('resetBtn').addEventListener('click', () => {
-  magEl.value = 4.5; dayEl.value = 30; render();
+  magEl.value = 4.5; magMaxEl.value = 8.0; dayEl.value = 30; render();
 });
 </script>
 </body>
